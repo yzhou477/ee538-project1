@@ -26,69 +26,64 @@ std::vector<std::vector<int>> edge_list;
 
 void build_adj_matrix()
 {
-    // (1) Allocate the adjacency matrix with the appropriate size based on total_nodes [cite: 106]
-    adj.resize(total_nodes, std::vector<int>(total_nodes, 0));
+    // (1) Allocate matrix adj of appropriate size (total_nodes x total_nodes)
+    adj.assign(total_nodes, std::vector<int>(total_nodes, 0));
 
-    // (2) Iterate through the edge list to populate the adjacency matrix [cite: 89, 107]
-    // The format is {source, target}, where the source node influences the target node [cite: 107]
+    // (2) Run through edge list and populate adj
+    // In this simulation, source influences target (source -> target)
     for (const auto& edge : edge_list) {
         int source = edge[0];
         int target = edge[1];
-        // Set the relationship: source influences target [cite: 103, 107]
-        adj[target][source] = 1; 
+        adj[source][target] = 1; 
     }
 }
 
 double calculate_fraction_of_ones()
 {
-    // (3) Count nodes with opinion 1 and return the ratio over total nodes [cite: 91, 106]
+    // (3) Calculate the fraction of nodes with opinion 1 and return it
     if (total_nodes == 0) return 0.0;
-    int count = 0;
-    for (int val : opinions) {
-        if (val == 1) count++;
+    double count_ones = 0;
+    for (int op : opinions) {
+        if (op == 1) count_ones++;
     }
-    return static_cast<double>(count) / total_nodes;
+    return count_ones / total_nodes;
 }
 
-// For a given node, count the majority opinion among its neighbors. Tie results in 0. [cite: 94]
+// For a given node, count majority opinion among its neighbours. Tie -> 0.
 int get_majority_friend_opinions(int node)
 {
-    // (4) Count the number of neighbors with opinion 0 and opinion 1 [cite: 93, 101]
+    // (4) Count the number of neighbours with opinion 0 and opinion 1
     int count0 = 0;
     int count1 = 0;
 
-    for (int neighbor = 0; neighbor < total_nodes; ++neighbor) {
-        // Check if there is an edge from neighbor to the current node [cite: 102, 103]
-        if (adj[node][neighbor] == 1) { 
-            if (opinions[neighbor] == 0) count0++;
+    for (int i = 0; i < total_nodes; i++) {
+        // If node 'i' influences our current 'node'
+        if (adj[i][node] == 1) {
+            if (opinions[i] == 0) count0++;
             else count1++;
         }
     }
 
-    // Return the majority opinion; return 0 in case of a tie [cite: 94]
-    if (count1 > count0) return 1;
-    else return 0;
+    // Return the majority; if tie, return 0
+    return (count1 > count0) ? 1 : 0;
 }
 
-// Calculate new opinions for all voters and return true if any opinion changed [cite: 92, 98]
+// Calculate new opinions for all voters and return if anyone's opinion changed
 bool update_opinions()
 {
-    // (5) Synchronous update: compute all new opinions before updating the global state [cite: 92]
-    std::vector<int> new_opinions(total_nodes);
+    // (5) Calculate the majority for all nodes before updating
+    // We use a temporary vector so updates don't affect other nodes in the same iteration
+    std::vector<int> next_opinions(total_nodes);
     bool changed = false;
 
-    // First pass: determine the new state for every node [cite: 93, 96]
-    for (int i = 0; i < total_nodes; ++i) {
-        new_opinions[i] = get_majority_friend_opinions(i);
-    }
-
-    // Second pass: apply the changes and track if the system has stabilized [cite: 97, 98]
-    for (int i = 0; i < total_nodes; ++i) {
-        if (new_opinions[i] != opinions[i]) {
+    for (int i = 0; i < total_nodes; i++) {
+        next_opinions[i] = get_majority_friend_opinions(i);
+        if (next_opinions[i] != opinions[i]) {
             changed = true;
-            opinions[i] = new_opinions[i];
         }
     }
+
+    opinions = next_opinions;
     return changed;
 }
 
@@ -113,21 +108,16 @@ int main() {
     cout << "Iteration " << iteration << ": fraction of 1's = " 
          << calculate_fraction_of_ones() << endl;
     
-    /// (6)  //////////////////////////////////////////////
-    
-    // (6) Run the simulation until consensus is reached or max_iterations is hit [cite: 97, 98, 100]
-    while (opinions_changed && iteration < max_iterations) {
+    // (6) Run until consensus or max iterations
+    while (iteration < max_iterations && opinions_changed) {
         iteration++;
-        // Update all opinions based on the Voter Model rules [cite: 91, 92]
         opinions_changed = update_opinions();
         
-        // Print progress at regular intervals [cite: 89]
-        if (iteration % 5 == 0) {
-            cout << "Iteration " << iteration << ": fraction of 1's = " 
-                 << calculate_fraction_of_ones() << endl;
-        }
+        // Print progress (optional: every 10 iterations or every iteration)
+        cout << "Iteration " << iteration << ": fraction of 1's = " 
+             << calculate_fraction_of_ones() << endl;
     }
-    
+
     ////////////////////////////////////////////////////////
     // Print final result
     double final_fraction = calculate_fraction_of_ones();
