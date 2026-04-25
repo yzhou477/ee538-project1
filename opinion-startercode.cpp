@@ -4,37 +4,37 @@
 using namespace std;
 
 /********************DO NOT EDIT**********************/
-// Function prototype. Defined later.
-void read_opinions(string filename); // reads file into opinions vector and updates total_nodes as needed
-void read_edges(string filename); // reads file into edge_list, defined later
-void build_adj_matrix(); // convert edge_list to adjacency matrix
+// Function prototype.
+void read_opinions(string filename); 
+void read_edges(string filename); 
+void build_adj_list(); // Renamed to reflect the new data structure
 
-int total_nodes = 0; // We keep track of the total number of nodes based on largest node id.
-
+int total_nodes = 0; 
 
 /****************************************************************/
 
-/******** Create adjacency matrix and vector of opinions */
-// simple vector to hold each node's opinion (0 or 1)
+// Vector to hold each node's opinion (0 or 1)
 std::vector<int> opinions;
 
-// global adjacency matrix initialized later
-std::vector<std::vector<int>> adj;
+// OPTIMIZATION: Incoming Adjacency List
+// adj_in[i] will contain a list of all nodes that INFLUENCE node i.
+std::vector<std::vector<int>> adj_in;
 
 // edge list: each row contains {source, target}
 std::vector<std::vector<int>> edge_list;
 
-void build_adj_matrix()
+void build_adj_list()
 {
-    // (1) Allocate matrix adj of appropriate size (total_nodes x total_nodes)
-    adj.assign(total_nodes, std::vector<int>(total_nodes, 0));
+    // (1) Allocate adjacency list of appropriate size (total_nodes)
+    adj_in.assign(total_nodes, std::vector<int>());
 
-    // (2) Run through edge list and populate adj
+    // (2) Run through edge list and populate the incoming adjacency list
     // In this simulation, source influences target (source -> target)
+    // Therefore, target's opinion is shaped by source.
     for (const auto& edge : edge_list) {
         int source = edge[0];
         int target = edge[1];
-        adj[source][target] = 1; 
+        adj_in[target].push_back(source); 
     }
 }
 
@@ -56,12 +56,11 @@ int get_majority_friend_opinions(int node)
     int count0 = 0;
     int count1 = 0;
 
-    for (int i = 0; i < total_nodes; i++) {
-        // If node 'i' influences our current 'node'
-        if (adj[i][node] == 1) {
-            if (opinions[i] == 0) count0++;
-            else count1++;
-        }
+    // OPTIMIZATION: Only iterate through the specific nodes that influence this node
+    // This avoids checking the entire total_nodes array.
+    for (int influencer : adj_in[node]) {
+        if (opinions[influencer] == 0) count0++;
+        else count1++;
     }
 
     // Return the majority; if tie, return 0
@@ -72,7 +71,6 @@ int get_majority_friend_opinions(int node)
 bool update_opinions()
 {
     // (5) Calculate the majority for all nodes before updating
-    // We use a temporary vector so updates don't affect other nodes in the same iteration
     std::vector<int> next_opinions(total_nodes);
     bool changed = false;
 
@@ -88,14 +86,12 @@ bool update_opinions()
 }
 
 int main() {
-    // no preallocation; vectors grow on demand
-
     // Read input files
     read_opinions("opinions.txt"); 
     read_edges("edge_list.txt");
 
-    // convert edge list into adjacency matrix once we know total_nodes
-    build_adj_matrix();
+    // Convert edge list into adjacency list
+    build_adj_list();
     
     cout << "Total nodes: " << total_nodes << endl;
     
@@ -113,7 +109,6 @@ int main() {
         iteration++;
         opinions_changed = update_opinions();
         
-        // Print progress (optional: every 10 iterations or every iteration)
         cout << "Iteration " << iteration << ": fraction of 1's = " 
              << calculate_fraction_of_ones() << endl;
     }
@@ -121,8 +116,6 @@ int main() {
     ////////////////////////////////////////////////////////
     // Print final result
     double final_fraction = calculate_fraction_of_ones();
-    cout << "Iteration " << iteration << ": fraction of 1's = " 
-         << final_fraction << endl;
     
     if(final_fraction == 1.0)
         cout << "Consensus reached: all 1's" << endl;
@@ -134,10 +127,8 @@ int main() {
     return 0;
 }
 
-
 /*********** Functions to read files **************************/ 
 
-// Read opinion vector from file.
 void read_opinions(string filename)
 {
     ifstream file(filename);
@@ -150,7 +141,6 @@ void read_opinions(string filename)
     file.close();
 }
 
-// Read edge list from file and update total nodes as needed.
 void read_edges(string filename)
 {
     ifstream file(filename);
@@ -164,5 +154,3 @@ void read_edges(string filename)
     }
     file.close();
 }
-
-/********************************************************************** */
